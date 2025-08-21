@@ -9,8 +9,8 @@
 #include <ArduinoJson.h>
 
 // WiFi credentials
-const char* ssid = "SAMURAI@CREEDS_2.4G";
-const char* password = "samurai2@creeds";
+const char *ssid = "San's Galaxy";
+const char *password = "sada1345";
 
 // Firebase credentials
 // https://esp-gas-ai-default-rtdb.asia-southeast1.firebasedatabase.app
@@ -18,9 +18,9 @@ const char* password = "samurai2@creeds";
 #define FIREBASE_AUTH "a31455e1b02ef8a8908d0f806df476a906594501"
 
 // ----- CD4051 Control Pins -----
-#define S0 12 // D6
-#define S1 13 // D7
-#define S2 14 // D5
+#define S0 12    // D6
+#define S1 13    // D7
+#define S2 14    // D5
 #define Z_PIN A0 // ESP8266 ADC
 
 // ----- DHT22 -----
@@ -56,18 +56,19 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000);
 
 // Sensor reading structure
-struct SensorReadings {
-  float ds18b20_temp;         // DS18B20 temperature (°C)
-  float dht_temp;             // DHT22 temperature (°C)
-  float dht_hum;              // DHT22 humidity (%)
-  int mq135_raw;              // MQ135 analog value
-  int mq135_digital;          // MQ135 digital value
-  int soil_raw;               // Soil moisture analog value
-  int ds18b20_temp_percent;   // DS18B20 temp percentage
-  int dht_temp_percent;       // DHT22 temp percentage
-  int dht_hum_percent;        // DHT22 humidity percentage
-  int mq135_percent;          // MQ135 percentage
-  int soil_percent;           // Soil moisture percentage
+struct SensorReadings
+{
+  float ds18b20_temp;       // DS18B20 temperature (°C)
+  float dht_temp;           // DHT22 temperature (°C)
+  float dht_hum;            // DHT22 humidity (%)
+  int mq135_raw;            // MQ135 analog value
+  int mq135_digital;        // MQ135 digital value
+  int soil_raw;             // Soil moisture analog value
+  int ds18b20_temp_percent; // DS18B20 temp percentage
+  int dht_temp_percent;     // DHT22 temp percentage
+  int dht_hum_percent;      // DHT22 humidity percentage
+  int mq135_percent;        // MQ135 percentage
+  int soil_percent;         // Soil moisture percentage
   String timestamp;
   unsigned long uptime;
   String deviceId;
@@ -80,13 +81,15 @@ unsigned long lastReading = 0;
 int readingCounter = 0;
 
 // Multiplexer channel selection
-void selectMuxChannel(byte channel) {
+void selectMuxChannel(byte channel)
+{
   digitalWrite(S0, channel & 0x01);
   digitalWrite(S1, (channel >> 1) & 0x01);
   digitalWrite(S2, (channel >> 2) & 0x01);
 }
 
-void setup() {
+void setup()
+{
   Serial.begin(115200);
   delay(2000);
   Serial.println("=== ESP8266 with CD4051 Multiple Sensor Logger ===");
@@ -118,9 +121,11 @@ void setup() {
   Serial.println("System initialized successfully!");
 }
 
-void loop() {
+void loop()
+{
   // Check WiFi connection
-  if (WiFi.status() != WL_CONNECTED) {
+  if (WiFi.status() != WL_CONNECTED)
+  {
     Serial.println("WiFi disconnected, reconnecting...");
     connectToWiFi();
   }
@@ -129,7 +134,8 @@ void loop() {
   timeClient.update();
 
   // Take readings at specified interval
-  if (millis() - lastReading >= READING_INTERVAL) {
+  if (millis() - lastReading >= READING_INTERVAL)
+  {
     SensorReadings readings = takeSensorReadings();
     printReadings(readings);
     sendToFirebase(readings);
@@ -140,29 +146,35 @@ void loop() {
   delay(100);
 }
 
-void connectToWiFi() {
+void connectToWiFi()
+{
   WiFi.begin(ssid, password);
   Serial.print("Connecting to WiFi");
   int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+  while (WiFi.status() != WL_CONNECTED && attempts < 20)
+  {
     delay(500);
     Serial.print(".");
     attempts++;
   }
-  if (WiFi.status() == WL_CONNECTED) {
+  if (WiFi.status() == WL_CONNECTED)
+  {
     Serial.println();
     Serial.println("WiFi connected successfully!");
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
     Serial.print("Signal strength: ");
     Serial.println(WiFi.RSSI());
-  } else {
+  }
+  else
+  {
     Serial.println();
     Serial.println("Failed to connect to WiFi. Check credentials.");
   }
 }
 
-SensorReadings takeSensorReadings() {
+SensorReadings takeSensorReadings()
+{
   SensorReadings readings;
 
   // MQ135 Analog via MUX channel 0
@@ -185,11 +197,14 @@ SensorReadings takeSensorReadings() {
   // DHT22
   readings.dht_temp = dht.readTemperature();
   readings.dht_hum = dht.readHumidity();
-  if (!isnan(readings.dht_temp) && !isnan(readings.dht_hum)) {
+  if (!isnan(readings.dht_temp) && !isnan(readings.dht_hum))
+  {
     readings.dht_temp_percent = map(readings.dht_temp * 100, TEMP_MIN * 100, TEMP_MAX * 100, 0, 100);
     readings.dht_temp_percent = constrain(readings.dht_temp_percent, 0, 100);
     readings.dht_hum_percent = readings.dht_hum; // Already in percentage
-  } else {
+  }
+  else
+  {
     readings.dht_temp = -999;
     readings.dht_hum = -999;
     readings.dht_temp_percent = 0;
@@ -199,10 +214,13 @@ SensorReadings takeSensorReadings() {
   // DS18B20
   ds18b20.requestTemperatures();
   readings.ds18b20_temp = ds18b20.getTempCByIndex(0);
-  if (readings.ds18b20_temp != DEVICE_DISCONNECTED_C) {
+  if (readings.ds18b20_temp != DEVICE_DISCONNECTED_C)
+  {
     readings.ds18b20_temp_percent = map(readings.ds18b20_temp * 100, TEMP_MIN * 100, TEMP_MAX * 100, 0, 100);
     readings.ds18b20_temp_percent = constrain(readings.ds18b20_temp_percent, 0, 100);
-  } else {
+  }
+  else
+  {
     readings.ds18b20_temp = -999;
     readings.ds18b20_temp_percent = 0;
   }
@@ -216,7 +234,8 @@ SensorReadings takeSensorReadings() {
   return readings;
 }
 
-String getFormattedTime() {
+String getFormattedTime()
+{
   time_t epochTime = timeClient.getEpochTime();
   struct tm *ptm = gmtime((time_t *)&epochTime);
   char timeString[30];
@@ -226,23 +245,30 @@ String getFormattedTime() {
   return String(timeString);
 }
 
-void printReadings(SensorReadings readings) {
+void printReadings(SensorReadings readings)
+{
   Serial.println("----- New Reading -----");
   Serial.println("Reading " + String(readingCounter + 1));
   Serial.println("Timestamp: " + readings.timestamp);
 
   // DS18B20
-  if (readings.ds18b20_temp != -999) {
+  if (readings.ds18b20_temp != -999)
+  {
     Serial.printf("DS18B20 Temp: %.2f °C (%d%%)\n", readings.ds18b20_temp, readings.ds18b20_temp_percent);
-  } else {
+  }
+  else
+  {
     Serial.println("DS18B20 Temp: ERROR");
   }
 
   // DHT22
-  if (readings.dht_temp != -999 && readings.dht_hum != -999) {
+  if (readings.dht_temp != -999 && readings.dht_hum != -999)
+  {
     Serial.printf("DHT22 Temp: %.2f °C (%d%%), Humidity: %.2f %% (%d%%)\n",
                   readings.dht_temp, readings.dht_temp_percent, readings.dht_hum, readings.dht_hum_percent);
-  } else {
+  }
+  else
+  {
     Serial.println("DHT22: Error reading sensor");
   }
 
@@ -258,8 +284,10 @@ void printReadings(SensorReadings readings) {
   Serial.println("------------------------\n");
 }
 
-void sendToFirebase(SensorReadings readings) {
-  if (WiFi.status() != WL_CONNECTED) {
+void sendToFirebase(SensorReadings readings)
+{
+  if (WiFi.status() != WL_CONNECTED)
+  {
     Serial.println("WiFi not connected, skipping Firebase upload");
     return;
   }
@@ -277,15 +305,18 @@ void sendToFirebase(SensorReadings readings) {
   sensorJson.set("mq135_air_analog", readings.mq135_raw);
   sensorJson.set("mq135_air_analog_%", readings.mq135_percent);
   sensorJson.set("mq135_air_digital", readings.mq135_digital);
-  
+
   sensorJson.set("timestamp", readings.timestamp);
   sensorJson.set("ipAddress", readings.ipAddress);
 
   String sensorPath = "/sensor_readings";
-  if (Firebase.pushJSON(firebaseData, sensorPath, sensorJson)) {
+  if (Firebase.pushJSON(firebaseData, sensorPath, sensorJson))
+  {
     Serial.println("✓ Sensor data sent to Firebase");
     Serial.println("Firebase Path: " + firebaseData.dataPath());
-  } else {
+  }
+  else
+  {
     Serial.println("✗ Failed to send sensor data to Firebase");
     Serial.println("Reason: " + firebaseData.errorReason());
   }
