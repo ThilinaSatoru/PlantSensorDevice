@@ -1,5 +1,20 @@
 # IOT Device
 
+![alt text](resources/i11.jpg)
+
+## Installation Libraries
+
+To install these libraries in Arduino IDE:
+
+1. Built-in libraries (ESP8266WiFi, WiFiClientSecure, WiFiUdp) - Already included with ESP8266 core
+2. `FirebaseESP8266` - Install via Library Manager or from GitHub
+3. `OneWire` and DallasTemperature - Available in Library Manager
+4. `DHT sensor library` - Available in Library Manager (by Adafruit)
+5. `NTPClient` - Available in Library Manager
+6. `ArduinoJson` - Available in Library Manager (by Benoit Blanchon)
+
+## Wiring Diagram
+
 ```
 ESP8266                   CD4051 (16-pin DIP, top view, notch at top)
                         +-------------------+
