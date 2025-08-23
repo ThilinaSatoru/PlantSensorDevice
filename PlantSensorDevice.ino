@@ -9,8 +9,8 @@
 #include <ArduinoJson.h>
 
 // WiFi credentials
-const char *ssid = "San's Galaxy";
-const char *password = "sada1345";
+const char *ssid = "SAMURAI@CREEDS_2.4G";
+const char *password = "samurai2@creeds";
 
 // Firebase credentials
 // https://esp-gas-ai-default-rtdb.asia-southeast1.firebasedatabase.app
@@ -51,9 +51,14 @@ FirebaseData firebaseData;
 FirebaseConfig config;
 FirebaseAuth auth;
 
-// NTP Client for timestamps
+// NTP Client for timestamps - Asia/Colombo is UTC+5:30 (19800 seconds)
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000);
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000); // Changed offset to 19800 (5.5 hours)
+
+// Time sync variables
+bool timeSync = false;
+unsigned long lastTimeSync = 0;
+const unsigned long TIME_SYNC_INTERVAL = 3600000; // 1 hour
 
 // Sensor reading structure
 struct SensorReadings
@@ -107,9 +112,9 @@ void setup()
   // Connect to WiFi
   connectToWiFi();
 
-  // Initialize NTP
+  // Initialize NTP with multiple attempts
   timeClient.begin();
-  timeClient.update();
+  syncTimeWithNTP();
 
   // Configure Firebase
   config.host = FIREBASE_HOST;
@@ -130,7 +135,13 @@ void loop()
     connectToWiFi();
   }
 
-  // Update NTP time
+  // Update NTP time periodically
+  if (millis() - lastTimeSync >= TIME_SYNC_INTERVAL || !timeSync)
+  {
+    syncTimeWithNTP();
+  }
+
+  // Force time update
   timeClient.update();
 
   // Take readings at specified interval
@@ -234,12 +245,63 @@ SensorReadings takeSensorReadings()
   return readings;
 }
 
+void syncTimeWithNTP()
+{
+  Serial.println("Synchronizing time with NTP server...");
+
+  // Try multiple NTP servers
+  String ntpServers[] = {"pool.ntp.org", "time.nist.gov", "time.google.com"};
+
+  for (int server = 0; server < 3 && !timeSync; server++)
+  {
+    Serial.println("Trying NTP server: " + ntpServers[server]);
+    timeClient.setPoolServerName(ntpServers[server].c_str());
+
+    // Multiple attempts per server
+    for (int attempt = 0; attempt < 5; attempt++)
+    {
+      Serial.print("Attempt " + String(attempt + 1) + "...");
+
+      if (timeClient.forceUpdate())
+      {
+        time_t epochTime = timeClient.getEpochTime();
+        if (epochTime > 946684800)
+        { // After year 2000
+          timeSync = true;
+          lastTimeSync = millis();
+          Serial.println(" SUCCESS!");
+          Serial.println("Current time: " + getFormattedTime());
+          return;
+        }
+      }
+
+      Serial.println(" failed");
+      delay(2000);
+    }
+  }
+
+  if (!timeSync)
+  {
+    Serial.println("Failed to sync time with any NTP server!");
+  }
+}
+
 String getFormattedTime()
 {
   time_t epochTime = timeClient.getEpochTime();
-  struct tm *ptm = gmtime((time_t *)&epochTime);
-  char timeString[30];
-  sprintf(timeString, "%04d-%02d-%02d %02d:%02d:%02d",
+
+  // Check if time is valid (after year 2000)
+  if (epochTime < 946684800)
+  {
+    return "Time not synced";
+  }
+
+  // Convert to local time manually (UTC + 5:30)
+  epochTime += 19800; // Add 5.5 hours in seconds
+
+  struct tm *ptm = gmtime(&epochTime);
+  char timeString[35];
+  sprintf(timeString, "%04d-%02d-%02d %02d:%02d:%02d (LK)",
           ptm->tm_year + 1900, ptm->tm_mon + 1, ptm->tm_mday,
           ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
   return String(timeString);
